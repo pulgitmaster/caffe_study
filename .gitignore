@@ -1,2 +1,5 @@
 *.prototxt
 .vscode/
+data/*
+!.gitkeep
+python_layer/lenet/*
