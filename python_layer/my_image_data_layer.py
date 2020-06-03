@@ -18,6 +18,9 @@ class Custom_Data_Layer(caffe.Layer):
         self.im_shape = params["im_shape"] # expect tuple (m, n)
         self.crop_size = params.get("crop_size", False)
         
+        # Create a batch loader to load the images.
+        self.batch_loader = BatchLoader(params, None)
+
         ###### Reshape top ######
         #This could also be done in Reshape method, but since it is a one-time-only
         #adjustment, we decided to do it on Setup
@@ -25,8 +28,9 @@ class Custom_Data_Layer(caffe.Layer):
             top[0].reshape(self.batch_size, 3, self.crop_size, self.crop_size)
         else:
             top[0].reshape(self.batch_size, 3, self.im_shape[0], self.im_shape[1])
-            
-        top[1].reshape(self.batch_size)
+
+        # Note the 7 channels (because FER2013 has 7 classes.)
+        top[1].reshape(self.batch_size, 7)
 
         #Read source file
         #I'm just assuming we have this method that reads the source file

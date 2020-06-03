@@ -1,6 +1,16 @@
-from __future__ import print_function
-from caffe import layers, params, to_proto
+from pylab import *
+import matplotlib.pyplot as plt
+
+import sys
+import caffe
+
+import os
+
+# If you don't have mnist lmdb format, then get from here : https://drive.google.com/file/d/1526YI_Nrsr4lMCeea4m1F4eQBVzagMaB/view
+
+from caffe import layers as L, params as P
 from caffe.proto import caffe_pb2
+from my_image_data_layer import Custom_Data_Layer
 
 # ref : https://github.com/fabiocarrara/pyffe/blob/master/models/resnet.py
 
@@ -21,8 +31,11 @@ def conv_bn(bottom, ksize=3, nout, stride=1, pad=0, group=1, train=True):
     bn = layers.BatchNorm(conv)
     return conv, bn
 
-def resnet18():
-    net = caffe.NetSpec()
-    
-    data, label = layers.Python(module='AsyncImageDataLayer', layer='AsyncImageDataLayer', ntop=2, param_str=str(image_data_param))
-    conv1 = 
+def resnet18_mnist():
+    n = caffe.NetSpec()
+    #n.data, n.label = L.ImageData(image_data_param=dict(source='tmp' , batch_size=100),
+    #                               ntop=2, transform_param=dict(mean_file='tmp'))
+    n.data, n.label = Custom_Data_Layer(src_file=, batch_size=64, im_shape=(64, 64), ntop=2) # 64 x 64
+
+    #data, label = layers.Python(module='AsyncImageDataLayer', layer='AsyncImageDataLayer', ntop=2, param_str=str(image_data_param))
+    #conv1 = 
