@@ -9,6 +9,7 @@ import os
 # If you don't have mnist lmdb format, then get from here : https://drive.google.com/file/d/1526YI_Nrsr4lMCeea4m1F4eQBVzagMaB/view
 
 from caffe import layers as L, params as P
+from caffe.proto import caffe_pb2
 
 plt.ion()
 
