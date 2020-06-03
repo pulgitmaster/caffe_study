@@ -18,7 +18,6 @@ def lenet(lmdb, batch_size):
     
     n.data, n.label = L.Data(batch_size=batch_size, backend=P.Data.LMDB, source=lmdb,
                              transform_param=dict(scale=1./255), ntop=2)
-    
     n.conv1 = L.Convolution(n.data, kernel_size=5, num_output=20, weight_filler=dict(type='xavier'))
     n.pool1 = L.Pooling(n.conv1, kernel_size=2, stride=2, pool=P.Pooling.MAX)
     n.conv2 = L.Convolution(n.pool1, kernel_size=5, num_output=50, weight_filler=dict(type='xavier'))
@@ -29,6 +28,35 @@ def lenet(lmdb, batch_size):
     n.loss =  L.SoftmaxWithLoss(n.score, n.label)
     
     return n.to_proto()
+
+def write_solver(path):
+    solver_txt = (# The train/test net protocol buffer definition
+                  "train_net: \"lenet/lenet_auto_train.prototxt\"\n"
+                  "test_net: \"lenet/lenet_auto_test.prototxt\"\n"
+                # test_iter specifies how many forward passes the test should carry out.
+                # In the case of MNIST, we have test batch size 100 and 100 test iterations,
+                # covering the full 10,000 testing images.
+                  "test_iter: 100\n"
+                # Carry out testing every 500 training iterations.
+                  "test_interval: 500\n"
+                # The base learning rate, momentum and the weight decay of the network.
+                  "base_lr: 0.01\n"
+                  "momentum: 0.9\n"
+                  "weight_decay: 0.0005\n"
+                # The learning rate policy
+                  "lr_policy: \"inv\""
+                  "gamma: 0.0001\n"
+                  "power: 0.75\n"
+                # Display every 100 iterations
+                  "display: 100\n"
+                # The maximum number of iterations
+                  "max_iter: 10000\n"
+                # snapshot intermediate results
+                  "snapshot: 5000\n"
+                  "snapshot_prefix: \"lenet/lenet\""
+                  )
+    with open(path, 'w') as f:
+        f.write(solver_txt)
 
 if not os.path.exists("lenet"):
     os.makedirs("lenet")
@@ -43,6 +71,7 @@ caffe.set_mode_gpu()
 
 ### load the solver and create train and test nets
 solver = None  # ignore this workaround for lmdb data (can't instantiate two solvers on the same data)
+write_solver('lenet/lenet_auto_solver.prototxt')
 solver = caffe.SGDSolver('lenet/lenet_auto_solver.prototxt') # get from caffe/examples/mnist
 
 # each output is (batch size, feature dim, spatial dim)
@@ -60,9 +89,9 @@ plt.draw()
 plt.pause(0.001)
 print 'train labels:', solver.net.blobs['label'].data[:8]
 
-
 niter = 200
 test_interval = 25
+
 # losses will also be stored in the log
 train_loss = zeros(niter)
 test_acc = zeros(int(np.ceil(niter / test_interval)))
@@ -91,7 +120,6 @@ for it in range(niter):
             correct += sum(solver.test_nets[0].blobs['score'].data.argmax(1)
                            == solver.test_nets[0].blobs['label'].data)
         test_acc[it // test_interval] = correct / 1e4
-
 
 _, ax1 = plt.subplots()
 ax2 = ax1.twinx()

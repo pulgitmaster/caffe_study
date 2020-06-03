@@ -2,11 +2,12 @@ import caffe
 
 class Custom_Data_Layer(caffe.Layer):
     def setup(self, bottom, top):
-        # Check top shape
+        #Check top shape
         if len(top) != 2:
-                raise Exception("Need to define top blobs (data and label)")
+            raise Exception("Need to define top blobs (data and label)")
         
         #Check bottom shape
+        # no "bottom"s for input layer
         if len(bottom) != 0:
             raise Exception("Do not define a bottom.")
         
@@ -14,7 +15,7 @@ class Custom_Data_Layer(caffe.Layer):
         params = eval(self.param_str)
         src_file = params["src_file"]
         self.batch_size = params["batch_size"]
-        self.im_shape = params["im_shape"]
+        self.im_shape = params["im_shape"] # expect tuple (m, n)
         self.crop_size = params.get("crop_size", False)
         
         ###### Reshape top ######
@@ -23,7 +24,7 @@ class Custom_Data_Layer(caffe.Layer):
         if self.crop_size:
             top[0].reshape(self.batch_size, 3, self.crop_size, self.crop_size)
         else:
-            top[0].reshape(self.batch_size, 3, self.im_shape, self.im_shape)
+            top[0].reshape(self.batch_size, 3, self.im_shape[0], self.im_shape[1])
             
         top[1].reshape(self.batch_size)
 
