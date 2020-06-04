@@ -21,3 +21,7 @@ Test any toy projects, network, etc.. (python2.7 with atlas, CUDA=10.2, CuDNN=7.
 - mnist : https://drive.google.com/file/d/1526YI_Nrsr4lMCeea4m1F4eQBVzagMaB/view
 
 >Download mnist lmdb format and unzip to data/mnist/
+
+- fer2013 : https://drive.google.com/file/d/1CNAAiJUAKKq7LzsIagOmIK69i1oLSrWW/view?usp=sharing
+
+>Download fer2013.csv and run data/fer2013/generate_fer2013_train_test_png.py
