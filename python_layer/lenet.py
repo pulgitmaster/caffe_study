@@ -11,9 +11,16 @@ import os
 from caffe import layers as L, params as P
 from caffe.proto import caffe_pb2
 
+#############################################################
+#    Must edit this line as your caffe_study root path      #
+#############################################################
+caffe_study_root = "/home/yb/Desktop/caffe_study/"
+data_dir = os.path.join(caffe_study_root, "data")
+lenet_path = os.path.join(caffe_study_root, "python_layer", "lenet")
+
 plt.ion()
 
-def lenet(lmdb, batch_size):
+def lenet_lmdb(lmdb, batch_size):
     # our version of LeNet: a series of linear and simple nonlinear transformations
     n = caffe.NetSpec()
     
@@ -27,7 +34,29 @@ def lenet(lmdb, batch_size):
     n.relu1 = L.ReLU(n.fc1, in_place=True)
     n.score = L.InnerProduct(n.relu1, num_output=10, weight_filler=dict(type='xavier'))
     n.loss =  L.SoftmaxWithLoss(n.score, n.label)
-    
+    n.acc = L.Accuracy(n.score, n.label)
+
+    return n.to_proto()
+
+def lenet_imagedata(source, batch_size):
+    n = caffe.NetSpec()
+
+    n.data, n.label = L.ImageData(batch_size=batch_size,
+                                source=source,
+                                transform_param=dict(scale=1./255),
+                                shuffle=True, # Don't omit this pllllllllllllllllllllllllllz!!!!
+                                ntop=2,
+                                is_color=False)
+    n.conv1 = L.Convolution(n.data, kernel_size=5, num_output=20, weight_filler=dict(type='xavier'))
+    n.pool1 = L.Pooling(n.conv1, kernel_size=2, stride=2, pool=P.Pooling.MAX)
+    n.conv2 = L.Convolution(n.pool1, kernel_size=5, num_output=50, weight_filler=dict(type='xavier'))
+    n.pool2 = L.Pooling(n.conv2, kernel_size=2, stride=2, pool=P.Pooling.MAX)
+    n.fc1 =   L.InnerProduct(n.pool2, num_output=500, weight_filler=dict(type='xavier'))
+    n.relu1 = L.ReLU(n.fc1, in_place=True)
+    n.score = L.InnerProduct(n.relu1, num_output=10, weight_filler=dict(type='xavier'))
+    n.loss =  L.SoftmaxWithLoss(n.score, n.label)
+    n.acc = L.Accuracy(n.score, n.label)
+
     return n.to_proto()
 
 def write_solver(path):
@@ -48,8 +77,8 @@ def write_solver(path):
                   "lr_policy: \"inv\""
                   "gamma: 0.0001\n"
                   "power: 0.75\n"
-                # Display every 100 iterations
-                  "display: 100\n"
+                # Display every 10 iterations
+                  "display: 10\n"
                 # The maximum number of iterations
                   "max_iter: 10000\n"
                 # snapshot intermediate results
@@ -62,33 +91,68 @@ def write_solver(path):
 if not os.path.exists("lenet"):
     os.makedirs("lenet")
 
-with open('lenet/lenet_auto_train.prototxt', 'w') as f:
-    f.write(str(lenet('../data/mnist/mnist_train_lmdb', 64)))
-    
-with open('lenet/lenet_auto_test.prototxt', 'w') as f:
-    f.write(str(lenet('../data/mnist/mnist_test_lmdb', 100)))
+def generate_net(data_type='ImageData'):
+    if type(data_type) is not str:
+        print("data_type must be string")
+        print(type(data_type))
+        exit()
 
+    if data_type.lower() == 'lmdb':
+        # with lmdb data
+        with open(os.path.join(lenet_path, 'lenet_auto_train.prototxt'), 'w') as f:
+            f.write(str(lenet_lmdb(os.path.join(data_dir, "mnist", "mnist_train_lmdb"), 64)))
+
+        with open(os.path.join(lenet_path, 'lenet_auto_test.prototxt'), 'w') as f:
+            f.write(str(lenet_lmdb(os.path.join(data_dir, "mnist", "mnist_test_lmdb"), 100)))
+
+    elif data_type.lower() == 'imagedata':
+        # with imagedata
+        with open(os.path.join(lenet_path,'lenet_auto_train.prototxt'), 'w') as f:
+            f.write(str(lenet_imagedata(os.path.join(data_dir, 'train_list.txt'), 64)))
+            
+        with open(os.path.join(lenet_path,'lenet_auto_test.prototxt'), 'w') as f:
+            f.write(str(lenet_imagedata(os.path.join(data_dir, 'test_list.txt'), 100)))
+    else:
+        print("unknown data_type")
+        exit()
+
+# 1. generate network as ".prototxt"
+generate_net(data_type='ImageData')
+
+# 2. set caffe as gpu
 caffe.set_mode_gpu()
 
-### load the solver and create train and test nets
-solver = None  # ignore this workaround for lmdb data (can't instantiate two solvers on the same data)
-write_solver('lenet/lenet_auto_solver.prototxt')
-solver = caffe.SGDSolver('lenet/lenet_auto_solver.prototxt') # get from caffe/examples/mnist
+# 3. load the solver and create train and test nets
+write_solver(os.path.join(lenet_path, 'lenet_auto_solver.prototxt')) # write prototxt first! always!!!
+solver = caffe.SGDSolver(os.path.join(lenet_path,'lenet_auto_solver.prototxt'))
 
 # each output is (batch size, feature dim, spatial dim)
-print([(k, v.data.shape) for k, v in solver.net.blobs.items()])
+print('output size of net:',[(k, v.data.shape) for k, v in solver.net.blobs.items()])
 
 # just print the weight sizes (we'll omit the biases)
 print([(k, v[0].data.shape) for k, v in solver.net.params.items()])
 
+# 4. train/test network
 solver.net.forward()  # train net
-solver.test_nets[0].forward()  # test net (there can be more than one)
+solver.net.save(os.path.join(lenet_path, 'weights.caffemodel')) # save train result
 
-# we use a little trick to tile the first eight images
+solver.net.copy_from(os.path.join(lenet_path, 'weights.caffemodel')) # load from saved weight parmeters, actually unnecessary in this code(already loaded)
+solver.test_nets[0].forward()  # test net (there can be more than one) # type(tes_nets) = list (cautions!!)
+
+# 5. show some demo results
+fig = plt.figure("train")
 plt.imshow(solver.net.blobs['data'].data[:8, 0].transpose(1, 0, 2).reshape(28, 8*28), cmap='gray'); axis('off')
+plt.title('predicted(trained): ' + str(solver.net.blobs['label'].data[:8]))
 plt.draw()
 plt.pause(0.001)
-print 'train labels:', solver.net.blobs['label'].data[:8]
+print('train labels:', solver.net.blobs['label'].data[:8])
+
+fig = plt.figure("test")
+plt.imshow(solver.test_nets[0].blobs['data'].data[:8, 0].transpose(1, 0, 2).reshape(28, 8*28), cmap='gray'); axis('off')
+plt.title('predicted(test): ' + str(solver.test_nets[0].blobs['label'].data[:8]))
+plt.draw()
+plt.pause(0.001)
+print('test labels:', solver.test_nets[0].blobs['label'].data[:8])
 
 niter = 200
 test_interval = 25
