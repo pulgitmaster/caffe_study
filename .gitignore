@@ -1,8 +1,10 @@
 *.prototxt
 *.caffemodel
 *.solverstate
-__pycache__/
+__pycache__/*
+*.pyc
 .vscode/
 data/*
+!data/*.py
 !data/*.zip
 !.gitkeep
