@@ -48,6 +48,8 @@ def lenet_test(test_list_path, batch_size=1): # num_classes : for mnist, whether
     n.data, n.label = L.ImageData(batch_size=batch_size,
                                 source=test_list_path,
                                 include={'phase':caffe.TEST},
+                                transform_param=dict(scale=1./255),
+                                shuffle=True,
                                 ntop=2,
                                 is_color=False)
     frozen_param = [dict(lr_mult=0)] * 2
@@ -61,7 +63,6 @@ def lenet_test(test_list_path, batch_size=1): # num_classes : for mnist, whether
     n.score = L.InnerProduct(n.relu1, num_output=10, param=frozen_param)
     n.loss =  L.SoftmaxWithLoss(n.score, n.label)
     n.acc = L.Accuracy(n.score, n.label)
-    n.probs = L.Softmax(n.score)
 
     return n.to_proto()
 
@@ -86,7 +87,7 @@ def create_solver(train_net_path, test_net_path=None, base_lr=0.01):
     # Here, we 'step' the learning rate by multiplying it by a factor `gamma`
     # every `stepsize` iterations.
     s.lr_policy = 'step'
-    s.gamma = 0.1
+    s.gamma = 0.5
     #s.power = 0.75
     s.stepsize = 1000 # Very much similar to pytorch optimizer params.
     # Set other SGD hyperparameters. Setting a non-zero `momentum` takes a
@@ -134,19 +135,32 @@ def run_solvers(solvers, niter, disp_interval=10):
     return loss, acc, weights
 
 # when you run more than one solvers
-def run_solver(solver, niter, disp_interval=10, weight_path=None):
+def run_solver(solver, niter, disp_interval=10, test_interval=25, weight_path=None):
     blobs = ('loss', 'acc')
-    loss, acc = (np.zeros(niter), np.zeros(niter))
+    train_loss, train_acc = (np.zeros(niter), np.zeros(niter))
+    test_acc = np.zeros(niter)
     for it in range(niter): # it = epoch
         solver.step(1) # run a single SGD step in caffe
-        loss[it], acc[it] = (solver.net.blobs[b].data.copy() for b in blobs)
+        train_loss[it], train_acc[it] = (solver.net.blobs[b].data.copy() for b in blobs)
         
         if it % disp_interval == 0 or it + 1 == niter:
-            loss_disp = 'loss=%.3f, acc=%2d%%' % (loss[it], np.round(100*acc[it])) # f'loss={loss[it]:.3f}, acc={acc[it]:2d}' <--- python 3.x
+            loss_disp = 'loss=%.3f, acc=%2d%%' % (train_loss[it], np.round(100*train_acc[it])) # f'loss={loss[it]:.3f}, acc={acc[it]:2d}' <--- python 3.x
             print '%3d) %s' % (it, loss_disp)
+
+        if it != 0: test_acc[it] = test_acc[it-1]
+        if it % test_interval == 0 or it + 1 == niter:
+            print 'Iteration', it, 'testing...'
+            correct = 0
+            for test_it in range(100): # test for 100 batch
+                solver.test_nets[0].forward()
+                correct += sum(solver.test_nets[0].blobs['score'].data.argmax(1)
+                            == solver.test_nets[0].blobs['label'].data)
+            test_acc[it] = correct / 1e4
+            print ('test_acc =', correct / 1e4)
+
     # Save the learned weights from net.
     weight = solver.net.save(os.path.join(weight_path, 'weights.caffemodel'))
-    return loss, acc, weight
+    return train_loss, test_acc, weight
 
 #print(os.path.join(data_dir,'train_list.txt'))
 #exit()
@@ -163,9 +177,9 @@ if not os.path.exists("lenet2"):
 #     f.write(str(lenet('../data/mnist/mnist_test_lmdb', 100)))
 
 with open(os.path.join(lenet2_path, 'lenet_train_with_ImageData.prototxt'), 'w') as f:
-    f.write(str(lenet_train(os.path.join(data_dir,'train_list.txt'), 64)))
+    f.write(str(lenet_train(os.path.join(data_dir, 'mnist', 'train_list.txt'), 64)))
 with open(os.path.join(lenet2_path, 'lenet_test_with_ImageData.prototxt'), 'w') as f:
-    f.write(str(lenet_test(os.path.join(data_dir,'test_list.txt'), 100)))
+    f.write(str(lenet_test(os.path.join(data_dir,'mnist', 'test_list.txt'), 100)))
 
 caffe.set_mode_gpu()
 
@@ -181,101 +195,21 @@ solver_path = os.path.join(lenet2_path, 'lenet_auto_solver_with_ImageData.protot
 # first generate prototxt
 with open(solver_path, 'w') as f:
     f.write(str(create_solver(train_net_path=os.path.join(lenet2_path, 'lenet_train_with_ImageData.prototxt'),
-                            #test_net_path=os.path.join(lenet2_path, 'lenet_test_with_ImageData.prototxt'), # we will not test
-                            base_lr=0.001))
+                            test_net_path=os.path.join(lenet2_path, 'lenet_test_with_ImageData.prototxt'),
+                            base_lr=0.01))
             )
 
 # load solver.prototxt ( you must generate ".prototxt" first! FUCK CAFFE )
 solver = caffe.get_solver(solver_path)
 #solver.solve() # train and test immediatly # we will run step by step instead.
 
-#exit()
 # run solver : A.K.A train this network(lenet),, and save '.caffemodel' file(=weight parameters)
-train_loss, train_acc, weights = run_solver(solver, 200, 10, 'lenet2/')
-#exit()
+train_loss, test_acc, weights = run_solver(solver, 200, 10, 25, 'lenet2/')
+solver.save(os.path.join(lenet2_path, 'weights.caffemodel')) # save train result)
 
-plt.plot(np.vstack([train_loss, train_acc]).T)
+plt.plot(np.vstack([train_loss, test_acc]).T)
 plt.xlabel('Iteration')
-plt.ylabel('Loss & Accuracy')
+plt.ylabel('Train Loss & Test Accuracy')
 
 plt.ioff()
 plt.show()
-
-# test with dummy data
-dummy_data = L.DummyData(shape=dict(dim=[1,1,28,28])) # mnist shape : 1(batch) x 1(channel) x 28(height) x 28(width)
-test_lenet_filename = lenet_test(data=dummy_data)
-test_lenet = caffe.Net(test_lenet_filename, weights, caffe.TEST)
-print(test_lenet.forward()['n.probs'])
-exit()
-
-mnist_train_data, mnist_train_label = L.ImageData(source='data/train_list.txt', ntop=2)
-mnist_test_data, mnist_test_label = L.ImageData(source='data/train_list.txt', ntop=2)
-
-val = test_lenet(data=mnist_data, label=mnist_label)
-
-
-#print(str(lenet_test(data=dummy_data, label=0)))
-#lenet_for_test = lenet_test(data=dummy_data)
-#loaded_weights = os.path.join('lenet2', )
-#def test_net(weights):
-    #test_net = 
-
-'''
-# each output is (batch size, feature dim, spatial dim)
-print([(k, v.data.shape) for k, v in solver.net.blobs.items()])
-
-# just print the weight sizes (we'll omit the biases)
-print([(k, v[0].data.shape) for k, v in solver.net.params.items()])
-
-solver.net.forward()  # train net
-solver.test_nets[0].forward()  # test net (there can be more than one)
-
-# we use a little trick to tile the first eight images
-plt.imshow(solver.net.blobs['data'].data[:8, 0].transpose(1, 0, 2).reshape(28, 8*28), cmap='gray'); axis('off')
-plt.draw()
-plt.pause(0.001)
-print 'train labels:', solver.net.blobs['label'].data[:8]
-
-niter = 200
-test_interval = 25
-
-# losses will also be stored in the log
-train_loss = zeros(niter)
-test_acc = zeros(int(np.ceil(niter / test_interval)))
-output = zeros((niter, 8, 10))
-
-# the main solver loop
-for it in range(niter):
-    solver.step(1)  # SGD by Caffe
-    
-    # store the train loss
-    train_loss[it] = solver.net.blobs['loss'].data
-    
-    # store the output on the first test batch
-    # (start the forward pass at conv1 to avoid loading new data)
-    solver.test_nets[0].forward(start='conv1')
-    output[it] = solver.test_nets[0].blobs['score'].data[:8]
-    
-    # run a full test every so often
-    # (Caffe can also do this for us and write to a log, but we show here
-    #  how to do it directly in Python, where more complicated things are easier.)
-    if it % test_interval == 0:
-        print 'Iteration', it, 'testing...'
-        correct = 0
-        for test_it in range(100):
-            solver.test_nets[0].forward()
-            correct += sum(solver.test_nets[0].blobs['score'].data.argmax(1)
-                           == solver.test_nets[0].blobs['label'].data)
-        test_acc[it // test_interval] = correct / 1e4
-
-_, ax1 = plt.subplots()
-ax2 = ax1.twinx()
-ax1.plot(arange(niter), train_loss)
-ax2.plot(test_interval * arange(len(test_acc)), test_acc, 'r')
-ax1.set_xlabel('iteration')
-ax1.set_ylabel('train loss')
-ax2.set_ylabel('test accuracy')
-ax2.set_title('Test Accuracy: {:.2f}'.format(test_acc[-1]))
-plt.ioff()
-plt.show()
-'''
