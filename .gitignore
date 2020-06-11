@@ -8,3 +8,4 @@ data/*
 !data/*.py
 !data/*.zip
 !.gitkeep
+!python_layer/lenet/*

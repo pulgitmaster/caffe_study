@@ -80,7 +80,7 @@ def write_solver(path):
                 # Display every 10 iterations
                   "display: 10\n"
                 # The maximum number of iterations
-                  "max_iter: 10000\n"
+                  "max_iter: 20000\n"
                 # snapshot intermediate results
                   "snapshot: 5000\n"
                   "snapshot_prefix: \"lenet/lenet\""
@@ -108,10 +108,10 @@ def generate_net(data_type='ImageData'):
     elif data_type.lower() == 'imagedata':
         # with imagedata
         with open(os.path.join(lenet_path,'lenet_auto_train.prototxt'), 'w') as f:
-            f.write(str(lenet_imagedata(os.path.join(data_dir, 'train_list.txt'), 64)))
+            f.write(str(lenet_imagedata(os.path.join(data_dir, 'mnist', 'train_list.txt'), 64)))
             
         with open(os.path.join(lenet_path,'lenet_auto_test.prototxt'), 'w') as f:
-            f.write(str(lenet_imagedata(os.path.join(data_dir, 'test_list.txt'), 100)))
+            f.write(str(lenet_imagedata(os.path.join(data_dir, 'mnist', 'test_list.txt'), 100)))
     else:
         print("unknown data_type")
         exit()
@@ -154,8 +154,8 @@ plt.draw()
 plt.pause(0.001)
 print('test labels:', solver.test_nets[0].blobs['label'].data[:8])
 
-niter = 200
-test_interval = 25
+niter = 1000
+test_interval = 50
 
 # losses will also be stored in the log
 train_loss = zeros(niter)

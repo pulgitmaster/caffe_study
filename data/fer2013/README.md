@@ -2,7 +2,7 @@
 
 ### Download from here :
 
-https://onedrive.live.com/download?cid=EDE9DD8FF84A3740&amp;resid=EDE9DD8FF84A3740%212229&amp;authkey=AKoue4QdO-nE8Ls
+https://1drv.ms/u/s!AkA3SviP3entkTWMaC3-h4P8d10g?e=OBAaiE
 
 
 

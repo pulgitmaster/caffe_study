@@ -116,14 +116,14 @@ def create_solver(train_net_path, test_net_path=None, base_lr=0.01):
     s.train_net = train_net_path
     if test_net_path is not None:
         s.test_net.append(test_net_path) # The type of s.test_net is "list"
-        s.test_interval = 1000  # Test after every 1000 training iterations.
-        s.test_iter.append(100) # Test on 100 batches each time we test. # shuffled
+        s.test_interval = 500  # Test after every 1000 training iterations.
+        s.test_iter.append(1000) # Test on 100 batches each time we test. # shuffled
     else:
         s.test_initialization = False
     # The number of iterations over which to average the gradient.
     # Effectively boosts the training batch size by the given factor, without affecting memory utilization.
     s.iter_size = 1
-    s.max_iter = 10000     # # of times to update the net (training iterations)
+    s.max_iter = 5000     # # of times to update the net (training iterations)
     # Solve using the stochastic gradient descent (SGD) algorithm, Other choices include 'Adam' and 'RMSProp'.
     s.type = 'Adam'
     s.base_lr = base_lr
@@ -143,7 +143,7 @@ def create_solver(train_net_path, test_net_path=None, base_lr=0.01):
     # Display the current training loss and accuracy every 100 iterations.
     s.display = 100
     # Snapshots are files used to store networks we've trained.  Here, we'll
-    # snapshot every 1K iterations -- ten times during training.
+    # snapshot every 1K iterations -- (max_iter / snapshot) times during training.
     s.snapshot = 1000
     s.snapshot_prefix = 'fer2013/fer2013'
     # Train on the GPU.
