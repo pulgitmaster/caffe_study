@@ -1,5 +1,73 @@
 import caffe
 
+class MyImageDataLayer(caffe.Layer):
+    """
+    This is a simple synchronous datalayer for training lenet with mnist.
+    """
+    def setup(self, bottom, top):
+        self.top_names = ['data', 'label']
+        # params is a python dictionary with layer parameters.
+        params = eval(self.param_str)
+        # store input as class variables
+        self.batch_size = params['batch_size']
+        # Create a batch loader to load the images.
+        self.batch_loader = BatchLoader(params, None)
+
+class BatchLoader(object):
+    """
+    This class abstracts away the loading of images.
+    Images can either be loaded singly, or in a batch. The latter is used for
+    the asyncronous data layer to preload batches while other processing is
+    performed.
+    """
+    def __init__(self, params,):
+        self.batch_size = params['batch_size']
+        self.img_path = params['pascal_root']
+        self.im_shape = params['im_shape']
+        # get list of image indexes.
+        list_file = params['split'] + '.txt'
+        self.indexlist = [line.rstrip('\n') for line in open(
+            osp.join(self.img_path, 'ImageSets/Main', list_file))]
+        self._cur = 0  # current image
+        # this class does some simple data-manipulations
+        self.transformer = SimpleTransformer()
+
+        print "BatchLoader initialized with {} images".format(
+            len(self.indexlist))
+
+    def load_next_image(self):
+        """
+        Load the next image in a batch.
+        """
+        # Did we finish an epoch?
+        if self._cur == len(self.indexlist):
+            self._cur = 0
+            shuffle(self.indexlist)
+
+        # Load an image
+        index = self.indexlist[self._cur]  # Get the image index
+        image_file_name = index + '.jpg'
+        im = np.asarray(Image.open(
+            osp.join(self.img_path, 'JPEGImages', image_file_name)))
+        im = scipy.misc.imresize(im, self.im_shape)  # resize
+
+        # do a simple horizontal flip as data augmentation
+        flip = np.random.choice(2)*2-1
+        im = im[:, ::flip, :]
+
+        # Load and prepare ground truth
+        multilabel = np.zeros(20).astype(np.float32)
+        anns = load_pascal_annotation(index, self.img_path)
+        for label in anns['gt_classes']:
+            # in the multilabel problem we don't care how MANY instances
+            # there are of each class. Only if they are present.
+            # The "-1" is b/c we are not interested in the background
+            # class.
+            multilabel[label - 1] = 1
+
+        self._cur += 1
+        return self.transformer.preprocess(im), multilabel
+
 class Custom_Data_Layer(caffe.Layer):
     def setup(self, bottom, top):
         #Check top shape
