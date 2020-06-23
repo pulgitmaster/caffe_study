@@ -9,3 +9,5 @@ data/*
 !data/*.zip
 !.gitkeep
 !python_layer/lenet/*
+!python_layer/lenet_pylayer/lenet_pylayer_deploy.prototxt
+!python_layer/lenet_pylayer/weights.caffemodel

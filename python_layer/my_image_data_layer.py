@@ -1,6 +1,10 @@
+import os
+import random
+import numpy as np
 import caffe
+import cv2
 
-class MyImageDataLayer(caffe.Layer):
+class MnistImageDataLayer(caffe.Layer):
     """
     This is a simple synchronous datalayer for training lenet with mnist.
     """
@@ -10,65 +14,74 @@ class MyImageDataLayer(caffe.Layer):
         params = eval(self.param_str)
         # store input as class variables
         self.batch_size = params['batch_size']
-        # Create a batch loader to load the images.
-        self.batch_loader = BatchLoader(params, None)
+        self.im_shape = params['"im_shape'] # expect tuple (m, n)
+        self.shuffle = params['shuffle']
+        self.phase = params['phase']
+        self.crop_size = params['crop_size']
+        self.img_list = []
+        self.label_list = []
 
-class BatchLoader(object):
-    """
-    This class abstracts away the loading of images.
-    Images can either be loaded singly, or in a batch. The latter is used for
-    the asyncronous data layer to preload batches while other processing is
-    performed.
-    """
-    def __init__(self, params,):
-        self.batch_size = params['batch_size']
-        self.img_path = params['pascal_root']
-        self.im_shape = params['im_shape']
-        # get list of image indexes.
-        list_file = params['split'] + '.txt'
-        self.indexlist = [line.rstrip('\n') for line in open(
-            osp.join(self.img_path, 'ImageSets/Main', list_file))]
+        # list of train/test images set & labels.
+        with open(params['list_path'], 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                line = line.split()
+                self.img_list.append(line[0])
+                self.label_list.append(line[1])
+
+        #self.label_list = np.array(self.label_list).astype(np.float)
         self._cur = 0  # current image
-        # this class does some simple data-manipulations
-        self.transformer = SimpleTransformer()
-
-        print "BatchLoader initialized with {} images".format(
-            len(self.indexlist))
 
     def load_next_image(self):
         """
         Load the next image in a batch.
         """
-        # Did we finish an epoch?
-        if self._cur == len(self.indexlist):
-            self._cur = 0
-            shuffle(self.indexlist)
+        # shuffle
+        if self.shuffle and self.phase == 'train':
+            if self._cur == len(self.img_list):
+                self._cur = 0
+                img_label_zip = list(zip(self.img_list, self.label_list))
+                random.shuffle(img_label_zip)
+                self.img_list, self.label_list = zip(*img_label_zip)
+                self.img_list = list(self.img_list)
+                self.label_list = list(self.label_list)
+        else:
+            if self._cur == len(self.img_list):
+                self._cur = 0
 
-        # Load an image
-        index = self.indexlist[self._cur]  # Get the image index
-        image_file_name = index + '.jpg'
-        im = np.asarray(Image.open(
-            osp.join(self.img_path, 'JPEGImages', image_file_name)))
-        im = scipy.misc.imresize(im, self.im_shape)  # resize
-
-        # do a simple horizontal flip as data augmentation
-        flip = np.random.choice(2)*2-1
-        im = im[:, ::flip, :]
-
-        # Load and prepare ground truth
-        multilabel = np.zeros(20).astype(np.float32)
-        anns = load_pascal_annotation(index, self.img_path)
-        for label in anns['gt_classes']:
-            # in the multilabel problem we don't care how MANY instances
-            # there are of each class. Only if they are present.
-            # The "-1" is b/c we are not interested in the background
-            # class.
-            multilabel[label - 1] = 1
+        # Load an image & label
+        image_file_name = self.img_list[self._cur]
+        im = cv2.imread(image_file_name, cv2.IMREAD_GRAYSCALE)
+        label = self.label_list[self._cur]
 
         self._cur += 1
-        return self.transformer.preprocess(im), multilabel
+        return im, label
 
-class Custom_Data_Layer(caffe.Layer):
+    def forward(self, bottom, top):
+        for itt in range(self.batch_size):
+            # Use the batch loader to load the next image.
+            im, label = self.load_next_image()
+            # Add directly to the top blob
+            top[0].data[itt, ...] = np.float32(im)
+            top[1].data[itt, ...] = np.float32(label)
+
+    def reshape(self, bottom, top):
+        # img
+        if self.crop_size:
+            top[0].reshape(self.batch_size, 1, self.crop_size, self.crop_size) # 2nd param : channel
+        else:
+            top[0].reshape(self.batch_size, 1, self.im_shape[0], self.im_shape[1])
+        # label
+        top[1].reshape(self.batch_size, 1)
+
+    def backward(self, bottom, top):
+        """
+        This layer does not back propagate
+        """
+        pass
+
+
+class CustomDataLayer(caffe.Layer):
     def setup(self, bottom, top):
         #Check top shape
         if len(top) != 2:
@@ -85,9 +98,6 @@ class Custom_Data_Layer(caffe.Layer):
         self.batch_size = params["batch_size"]
         self.im_shape = params["im_shape"] # expect tuple (m, n)
         self.crop_size = params.get("crop_size", False)
-        
-        # Create a batch loader to load the images.
-        self.batch_loader = BatchLoader(params, None)
 
         ###### Reshape top ######
         #This could also be done in Reshape method, but since it is a one-time-only
@@ -103,7 +113,8 @@ class Custom_Data_Layer(caffe.Layer):
         #Read source file
         #I'm just assuming we have this method that reads the source file
         #and returns a list of tuples in the form of (img, label)
-        self.imgTuples = readSrcFile(src_file) 
+
+        #self.imgTuples = readSrcFile(src_file) 
         
         self._cur = 0 #use this to check if we need to restart the list of imgs
         
