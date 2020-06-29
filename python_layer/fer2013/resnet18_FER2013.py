@@ -145,7 +145,7 @@ def create_solver(train_net_path, test_net_path=None, base_lr=0.01):
     # Snapshots are files used to store networks we've trained.  Here, we'll
     # snapshot every 1K iterations -- (max_iter / snapshot) times during training.
     s.snapshot = 1000
-    s.snapshot_prefix = 'fer2013/fer2013'
+    s.snapshot_prefix = os.path.join(fer2013_output_path, 'resnet18')
     # Train on the GPU.
     s.solver_mode = caffe_pb2.SolverParameter.GPU
     # Write the solver to a temporary file and return its filename.

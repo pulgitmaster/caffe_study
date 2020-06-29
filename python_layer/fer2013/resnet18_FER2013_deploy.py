@@ -1,4 +1,5 @@
 # 3rd party
+import os
 import cv2
 import time
 import numpy as np
@@ -13,8 +14,14 @@ label_name_list = ["Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neut
 def gray_to_rgb(img, dtype=np.uint8):
     return np.asarray(np.dstack((img, img, img)), dtype=dtype)
 
-model = 'fer2013/resnet18_deploy.prototxt'
-weights = 'fer2013/fer2013_iter_9000.caffemodel'
+#############################################################
+#    Must edit this line as your caffe_study root path      #
+#############################################################
+caffe_study_root = "/home/yb/Desktop/caffe_study/"
+data_dir = os.path.join(caffe_study_root, "data")
+fer2013_output_path = os.path.join(caffe_study_root, "python_layer", "fer2013")
+model = os.path.join(fer2013_output_path, 'resnet18_deploy.prototxt')
+weights = os.path.join(fer2013_output_path, 'fer2013_iter_9000.caffemodel')
 
 caffe.set_mode_cpu()
 caffe.set_device(0)
@@ -23,7 +30,7 @@ net = caffe.Net(model, weights, caffe.TEST)
 
 # one of 7178
 rdn = random.randint(0, 7178) # 0 ~ 7178
-with open('../data/fer2013/test_list.txt', 'r') as f:
+with open(os.path.join(data_dir, 'fer2013/test_list.txt'), 'r') as f:
     for i in range(7178):
         if i != rdn:
             f.readline()
