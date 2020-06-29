@@ -61,8 +61,8 @@ def lenet_imagedata(source, batch_size):
 
 def write_solver(path):
     solver_txt = (# The train/test net protocol buffer definition
-                  "train_net: \"lenet/lenet_auto_train.prototxt\"\n"
-                  "test_net: \"lenet/lenet_auto_test.prototxt\"\n"
+                  "train_net: \"lenet_auto_train.prototxt\"\n"
+                  "test_net: \"lenet_auto_test.prototxt\"\n"
                 # test_iter specifies how many forward passes the test should carry out.
                 # In the case of MNIST, we have test batch size 100 and 100 test iterations,
                 # covering the full 10,000 testing images.
@@ -83,7 +83,7 @@ def write_solver(path):
                   "max_iter: 20000\n"
                 # snapshot intermediate results
                   "snapshot: 5000\n"
-                  "snapshot_prefix: \"lenet/lenet\""
+                  "snapshot_prefix: \"lenet\""
                   )
     with open(path, 'w') as f:
         f.write(solver_txt)

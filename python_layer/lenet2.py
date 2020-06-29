@@ -186,8 +186,8 @@ caffe.set_mode_gpu()
 ### create solver --- old
 #solver_path = 'lenet2/lenet_auto_solver.prototxt'
 # with open(solver_path, 'w') as f:
-#     f.write(str(create_solver(train_net_path='lenet2/lenet_auto_train.prototxt',
-#                             test_net_path='lenet2/lenet_auto_test.prototxt',
+#     f.write(str(create_solver(train_net_path=os.path.join(lenet2_path, 'lenet_auto_train.prototxt'),
+#                             test_net_path=os.path.join(lenet2_path,'lenet_auto_test.prototxt'),
 #                             base_lr=0.001))
 #             )
 ### create solver --- new
@@ -204,7 +204,7 @@ solver = caffe.get_solver(solver_path)
 #solver.solve() # train and test immediatly # we will run step by step instead.
 
 # run solver : A.K.A train this network(lenet),, and save '.caffemodel' file(=weight parameters)
-train_loss, test_acc, weights = run_solver(solver, 200, 10, 25, 'lenet2/')
+train_loss, test_acc, weights = run_solver(solver, 200, 10, 25, lenet2_path)
 solver.save(os.path.join(lenet2_path, 'weights.caffemodel')) # save train result)
 
 plt.plot(np.vstack([train_loss, test_acc]).T)
