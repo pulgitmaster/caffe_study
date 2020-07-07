@@ -11,3 +11,17 @@ data/*
 !python_layer/lenet/*
 !python_layer/lenet_pylayer/lenet_pylayer_deploy.prototxt
 !python_layer/lenet_pylayer/weights.caffemodel
+cpp_layer/*
+cpp_example/*/build/*
+#CMAKE gitignore
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps

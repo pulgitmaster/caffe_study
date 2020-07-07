@@ -8,6 +8,7 @@
 #include "caffe/common.hpp"
 #include "caffe/filler.hpp"
 #include "caffe/layers/data_layer.hpp"
+#include "caffe/layers/image_data_layer.hpp"
 #include "caffe/layers/conv_layer.hpp"
 #include "caffe/layers/pooling_layer.hpp"
 #include "caffe/layers/inner_product_layer.hpp"
@@ -40,15 +41,18 @@ int main()
     blob_top_data_vec_.push_back(blob_label);
 
     LayerParameter layer_data_param;
-    DataParameter* data_param = layer_data_param.mutable_data_param();
+    ImageDataParameter* data_param = layer_data_param.mutable_image_data_param();
     data_param->set_batch_size(64);
-    data_param->set_source("/home/yb/Desktop/caffe_study/data/mnist/mnist_lmdb/mnist_train_lmdb");
-    data_param->set_backend(caffe::DataParameter_DB_LMDB);
+    data_param->set_source("/home/yb/Desktop/caffe_study/data/mnist/train_list.txt");
+    data_param->set_shuffle(true);
+    //data_param->is_color(true); // read channel number automatically
+    // data_param->set_backend(caffe::DataParameter_DB_LMDB);
 
     TransformationParameter* transform_param = layer_data_param.mutable_transform_param();
     transform_param->set_scale(1./255.);
 
-    DataLayer<Dtype> layer_data(layer_data_param);
+    //DataLayer<Dtype> layer_data(layer_data_param);
+    ImageDataLayer<Dtype> layer_data(layer_data_param);
     layer_data.SetUp(blob_bottom_data_vec_, blob_top_data_vec_);
 
     // conv1
@@ -242,15 +246,17 @@ int main()
     blob_top_testdata_vec_.push_back(blob_testlabel);
 
     LayerParameter layer_testdata_param;
-    DataParameter* testdata_param = layer_testdata_param.mutable_data_param();
+    ImageDataParameter* testdata_param = layer_testdata_param.mutable_image_data_param();
     testdata_param->set_batch_size(10000);
-    testdata_param->set_source("/home/yb/Desktop/caffe_study/data/mnist/mnist_lmdb/mnist_test_lmdb");
-    testdata_param->set_backend(caffe::DataParameter_DB_LMDB);
+    testdata_param->set_source("/home/yb/Desktop/caffe_study/data/mnist/test_list.txt");
+    //testdata_param->set_is_color(false);
+    //testdata_param->set_backend(caffe::DataParameter_DB_LMDB);
 
     TransformationParameter* transform_test_param = layer_testdata_param.mutable_transform_param();
     transform_test_param->set_scale(1./255.);
 
-    DataLayer<Dtype> layer_testdata(layer_testdata_param);
+    ImageDataLayer<Dtype> layer_testdata(layer_testdata_param);
+    //DataLayer<Dtype> layer_testdata(layer_testdata_param);
     layer_testdata.SetUp(blob_bottom_testdata_vec_, blob_top_testdata_vec_);
 
     // reshape

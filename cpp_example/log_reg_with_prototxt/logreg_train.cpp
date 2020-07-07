@@ -4,6 +4,7 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 
 #include "caffe/caffe.hpp"
@@ -18,6 +19,36 @@ using namespace caffe;
 using std::cout;
 using std::endl;
 typedef double Dtype;
+
+const int num_required_args = 3; // net, type, arch
+
+// refernce : https://kezunlin.me/post/5898412/
+// bool ReadProtoFromTextFile(const char* filename, Message* proto) {
+//     Encryption encryption;
+//   int fd = open(filename, O_RDONLY);
+//   CHECK_NE(fd, -1) << "File not found: " << filename;
+//   std::FileInputStream* input = new std::FileInputStream(fd);
+//   bool success = google::protobuf::TextFormat::Parse(input, proto);
+//   delete input;
+//   close(fd);
+//   return success;
+// }
+
+// bool ReadProtoFromBinaryFile(const char* filename, Message* proto) {
+//   int fd = open(filename, O_RDONLY);
+//   CHECK_NE(fd, -1) << "File not found: " << filename;
+//   ZeroCopyInputStream* raw_input = new FileInputStream(fd);
+//   CodedInputStream* coded_input = new CodedInputStream(raw_input);
+//   coded_input->SetTotalBytesLimit(kProtoReadBytesLimit, 536870912);
+
+//   bool success = proto->ParseFromCodedStream(coded_input);
+
+//   delete coded_input;
+//   delete raw_input;
+//   close(fd);
+//   return success;
+// }
+
 
 int main(int argc, char** argv) {
     // set net
@@ -53,6 +84,22 @@ int main(int argc, char** argv) {
     NetParameter param_net;
     google::protobuf::TextFormat::ParseFromString(proto, &param_net);
 
+    // if (argc < num_required_args) {
+    //     return 1;
+    // }
+
+    // for(int i=0; i<num_required_args; i++){
+    //     if(strcmp(argv[i], "GPU") == 0){
+    //         Caffe::set_mode(Caffe::GPU);
+    //     }
+    //     else if(strcmp(argv[i], "CPU") == 0){
+    //         Caffe::set_mode(Caffe::CPU);
+    //     }
+    // }
+
+    google::protobuf::Message *message;
+
+
     SolverParameter param_solver;
     param_solver.set_allocated_net_param(&param_net);
     param_solver.set_base_lr(0.001);
@@ -68,4 +115,10 @@ int main(int argc, char** argv) {
     // training
     SGDSolver<Dtype> solver(param_solver);
     solver.Solve();
+
+
+    
+
+    //std::string pretrained_caffemodel(argv[])
+
 }
